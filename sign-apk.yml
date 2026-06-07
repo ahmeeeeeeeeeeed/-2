@@ -36,22 +36,13 @@ jobs:
 
       - name: Sign APK with apksigner
         run: |
-          # مسار apksigner بعد تثبيت Android SDK
-          APKSIGNER="$ANDROID_HOME/build-tools/33.0.2/apksigner"
-          
-          # لو مش موجود، جرب نسخة أحدث
-          if [ ! -f "$APKSIGNER" ]; then
-            APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-          fi
-          
-          # التوقيع
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | head -1)
+          echo "Using apksigner: $APKSIGNER"
           $APKSIGNER sign --ks key.jks \
             --ks-pass pass:123456 \
             --key-pass pass:123456 \
             --out signed_app.apk \
             "${{ env.APK_PATH }}"
-          
-          echo "Signed APK created: signed_app.apk"
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
