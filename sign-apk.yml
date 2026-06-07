@@ -34,17 +34,27 @@ jobs:
             -storepass 123456 -keypass 123456 \
             -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
 
-      - name: Sign APK
-        uses: ilharp/sign-android-release@v1
-        with:
-          releaseDir: .
-          signingKey: key.jks
-          keyAlias: mykey
-          keyStorePassword: 123456
-          keyPassword: 123456
+      - name: Sign APK with apksigner
+        run: |
+          # مسار apksigner بعد تثبيت Android SDK
+          APKSIGNER="$ANDROID_HOME/build-tools/33.0.2/apksigner"
+          
+          # لو مش موجود، جرب نسخة أحدث
+          if [ ! -f "$APKSIGNER" ]; then
+            APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          fi
+          
+          # التوقيع
+          $APKSIGNER sign --ks key.jks \
+            --ks-pass pass:123456 \
+            --key-pass pass:123456 \
+            --out signed_app.apk \
+            "${{ env.APK_PATH }}"
+          
+          echo "Signed APK created: signed_app.apk"
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: signed-apk
-          path: ./*_signed.apk
+          path: signed_app.apk
