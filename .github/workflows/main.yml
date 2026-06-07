@@ -1,0 +1,44 @@
+name: Sign My APK
+
+on:
+  workflow_dispatch:  # هتشغله يدويًا من هنا
+
+jobs:
+  sign-apk:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download APK from current repo
+        uses: actions/checkout@v4
+
+      - name: Find APK file
+        id: find
+        run: |
+          APK_FILE=$(find . -name "*.apk" -type f | head -1)
+          echo "Found APK: $APK_FILE"
+          echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
+
+      - name: Generate keystore (signing key)
+        run: |
+          keytool -genkey -v -keystore my-release-key.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias my-key \
+            -dname "CN=MyApp, OU=Dev, O=Company, L=City, S=State, C=US" \
+            -storepass 123456 -keypass 123456
+
+      - name: Sign APK
+        uses: ilharp/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDir: .
+          signingKey: my-release-key.jks
+          keyAlias: my-key
+          keyStorePassword: 123456
+          keyPassword: 123456
+          apkPath: ${{ steps.find.outputs.apk_path }}
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Signed_APK
+          path: ${{ steps.sign_app.outputs.signedFile }}
