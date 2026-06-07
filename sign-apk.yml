@@ -1,4 +1,4 @@
-name: Sign APK
+name: Sign Existing APK
 
 on:
   workflow_dispatch:
@@ -7,45 +7,46 @@ jobs:
   sign:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
+      - name: Find APK
+        run: |
+          echo "APK_FILE=$(find . -maxdepth 1 -name '*.apk' -type f | head -1)" >> $GITHUB_ENV
+          echo "Found APK: ${{ env.APK_FILE }}"
+      
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'oracle'
           java-version: '17'
-
+      
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Find APK file
-        id: find
+        uses: malinskiy/action-android@v1
+        with:
+          cmdline-tools-version: 9477386
+      
+      - name: Create Keystore
         run: |
-          APK=$(find . -name "*.apk" -type f | head -1)
-          echo "APK_PATH=$APK" >> $GITHUB_ENV
-          echo "Found: $APK"
-
-      - name: Generate keystore
+          keytool -genkey -v -keystore app.keystore \
+            -alias appkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass 123456 \
+            -keypass 123456 \
+            -dname "CN=App, OU=App, O=App, L=City, S=State, C=US"
+      
+      - name: Sign APK
         run: |
-          keytool -genkey -v -keystore key.jks \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -alias mykey \
-            -storepass 123456 -keypass 123456 \
-            -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
-
-      - name: Sign APK with apksigner
-        run: |
-          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | head -1)
-          echo "Using apksigner: $APKSIGNER"
-          $APKSIGNER sign --ks key.jks \
+          $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
+            --ks app.keystore \
             --ks-pass pass:123456 \
             --key-pass pass:123456 \
-            --out signed_app.apk \
-            "${{ env.APK_PATH }}"
-
-      - name: Upload signed APK
+            --out signed-app.apk \
+            ${{ env.APK_FILE }}
+      
+      - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: signed-apk
-          path: signed_app.apk
+          name: signed-app
+          path: signed-app.apk
